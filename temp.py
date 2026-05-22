@@ -21,6 +21,7 @@ ABC_DB_SECRET_NAME = "jira/xray/credentials"
 GLUE_JOB_NAME = "csv_data_comparison_trilok"
 S3_BUCKET = "lly-edp-codeconfig-dummy"
 OUTPUT_S3_KEY = "mdids-infohub/clariness_negative_output/"
+FLAG_S3_KEY = "mdids-infohub/clariness_positive_flow_files/clariness_test_flag.json"
 FINAL_JSON_OUTPUT = "clariness_negative_output.json"
  
 SCHEMA_NAME = "clariness_raw"
@@ -210,32 +211,13 @@ def trigger_airflow_dag():
             timeout=30
         )
        
-        if response.status_code in [200, 201]:
-            dag_result = {
+        if response.status_code not in [200, 201]:
+            raise Exception(f"Failed to trigger {DAG_ID}: {response.text}")
+        return {
                 "status": "TRIGGERED",
                 "message": f"Successfully triggered {DAG_ID}",
                 "dag_id": DAG_ID
             }
-            print(f"Successfully triggered {DAG_ID}")
-            return True, dag_result
-        else:
-            dag_result = {
-                "status": "FAILED",
-                "message": f"Failed to trigger {DAG_ID}",
-                "response": response.text
-            }
-            print(f"Failed to trigger {DAG_ID}")
-            print(response.text)
-            return False, dag_result
-   
-    except Exception as e:
-        dag_result = {
-            "status": "ERROR",
-            "message": str(e),
-            "dag_id": DAG_ID
-        }
-        print(f"Error triggering {DAG_ID}: {e}")
-        return False, dag_result
  
 #GLUE JOB VALIDATION
 def wait_for_glue_job_completion(job_name):
@@ -592,11 +574,28 @@ def verify_abc_framework(negative_test=False):
         if conn:
             conn.close()
        
-        # Skip file writing in Lambda (read-only filesystem)
         # Results are returned in lambda_handler output
         print(f"ABC verification results: {results}")
    
     return results
+
+def read_flow_config_from_s3():
+    """
+    Read flow configuration JSON from S3.
+    """
+ 
+    response = s3_client.get_object(
+        Bucket=S3_BUCKET,
+        Key=FLAG_S3_KEY
+    )
+ 
+    content = response["Body"].read().decode("utf-8")
+ 
+    config = json.loads(content)
+ 
+    print(f"Loaded config from S3: {config}")
+ 
+    return config
  
  
 #MAIN FLOW
@@ -611,164 +610,193 @@ def lambda_handler(event, lambda_context):
     Returns:
         A structured result dictionary describing each step outcome.
     """
-    output = {
-        "NegativeScenarioSuccessStatus": "FAIL",
-        "IncidentNumber": None,
-        "SecretInvalidation": {},
-        "DAGTrigger": {},
-        "GlueJobValidation": {},
-        "SecretRestore": {},
-        "TableProcessing": {},
-        "ABCFrameworkVerification": {},
-        "DbBeforeDagTrigger": 0,
-        "DbAfterDagTrigger": 0,
-        "DBComparison": {},
-        "Discrepancies": []
-    }
-    original_password = None
-    glue_end_time = None
-    conn = None
-    snapshot_before_keys = set()
-   
-    try:
-        # Extract DB snapshot before invalidation (file1)
-        try:
-            db_config_tmp = get_db_config(DB_SECRET_NAME)
-            snapshot_before_keys = fetch_key_set_from_db(db_config_tmp, "clariness_ref", "clariness_site_patient", "clariness_patient_id")
-            output["DbBeforeDagTrigger"] = len(snapshot_before_keys)
-        except Exception as e:
-            snapshot_before_keys = set()
-            output["DbBeforeDagTrigger"] = 0
-            output["Discrepancies"].append({"type": "DBSnapshotBefore", "issue": "Failed to extract before snapshot", "details": str(e)})
-
-        # 1. Invalidate secret password
-        success, result = execute_step("SecretInvalidation", invalidate_secret_password, SECRET_NAME)
-        output["SecretInvalidation"] = {"success": success, "details": "Password invalidated successfully" if success else result.get("error")}
-        if success:
-            original_password = result
-        else:
-            output["Discrepancies"].append({"type": "SecretInvalidation", "issue": "Failed to invalidate password", "details": result})
+    flow_config = read_flow_config_from_s3()
  
-        # 2. Trigger Airflow DAG
-        success, result = execute_step("DAGTrigger", trigger_airflow_dag)
+    flow_type = str(flow_config.get("flowToTest", "")).lower()
+    
+    print(f"Flow Type: {flow_type}")
+
+    # POSITIVE FLOW
+    if flow_type == "positive":
+    
+        print("Executing POSITIVE flow")
+    
+        # Trigger DAG only
+        success, result = execute_step(
+            "DAGTrigger",
+            trigger_airflow_dag
+        )
+
         output["DAGTrigger"] = result
         if not success:
             output["Discrepancies"].append({"type": "DAGTrigger", "issue": "Failed to trigger DAG", "details": result})
- 
-        # 3. Wait for Glue job completion
-        success, result = execute_step("GlueJob", wait_for_glue_job_completion, GLUE_JOB_NAME)
-        output["GlueJobValidation"] = {"status": "SUCCEEDED", "end_time": str(result)} if success else {"status": "FAILED", "error": result.get("error")}
-        if success:
-            glue_end_time = result
-        else:
-            output["Discrepancies"].append({"type": "GlueJob", "issue": "Glue job failed", "details": result})
- 
-        # 4. Extract incident number from logs
-        inc_ok, inc_data = extract_incident_number_from_glue_logs()
-        output["IncidentNumber"] = inc_data if inc_ok else None
-        if not inc_ok:
-            output["Discrepancies"].append({"type": "IncidentNumber", "issue": "Incident number not found", "details": inc_data})
- 
-        # 5. Process database tables if Glue succeeded
-        if glue_end_time is not None:
-            try:
-                db_config = get_db_config(DB_SECRET_NAME)
-                conn = psycopg2.connect(**db_config)
-                cursor = conn.cursor()
-                all_old_records = []
-                all_recent_updates = []
- 
-                for table_name, primary_key_column in TABLE_CONFIG.items():
-                    old_recs, recent_upds = process_table(cursor, SCHEMA_NAME, table_name, primary_key_column, glue_end_time)
-                    all_old_records.extend(old_recs)
-                    all_recent_updates.extend(recent_upds)
- 
-                output["TableProcessing"] = {
-                    "tables_processed": list(TABLE_CONFIG.keys()),
-                    "recent_updates_count": len(all_recent_updates),
-                    "recent_updates": all_recent_updates
-                }
- 
-                # Mark as failure if recent updates found (on or after Glue job end time)
-                if all_recent_updates:
-                    output["Discrepancies"].append({
-                        "type": "TableProcessing",
-                        "issue": "DB records updated on or after Glue job end time",
-                        "details": f"Found {len(all_recent_updates)} updated records on/after Glue end time"
-                    })
-                # Extract DB snapshot after glue run (file2) and compare
-                try:
-                    db_config_tmp = get_db_config(DB_SECRET_NAME)
-                    snapshot_after_keys = fetch_key_set_from_db(db_config_tmp, "clariness_ref", "clariness_site_patient", "clariness_patient_id")
-                    output["DbAfterDagTrigger"] = len(snapshot_after_keys)
-                    comparison = compare_key_sets(snapshot_before_keys or set(), snapshot_after_keys or set())
-                    output["DBComparison"] = comparison
-                    if comparison.get("only_in_file1_count", 0) > 0 or comparison.get("only_in_file2_count", 0) > 0:
-                        output["Discrepancies"].append({"type": "DBComparison", "issue": "Differences found between before/after snapshots", "details": comparison})
-                except Exception as e:
-                    output["DBComparison"] = {"status": "FAILED", "error": str(e)}
-                    output["Discrepancies"].append({"type": "DBComparison", "issue": "Failed to extract after snapshot", "details": str(e)})
-            except Exception as e:
-                output["TableProcessing"] = {"status": "FAILED", "error": str(e)}
-                output["Discrepancies"].append({"type": "TableProcessing", "issue": "Failed to process tables", "details": str(e)})
-            finally:
-                if conn:
-                    conn.close()
- 
-        # 6. Verify ABC Framework
-        try:
-            abc_result = verify_abc_framework(negative_test=True)
-            output["ABCFrameworkVerification"] = abc_result
-            if abc_result.get("status") != "success":
-                output["Discrepancies"].append({"type": "ABCFrameworkVerification", "issue": "ABC Framework verification failed", "details": abc_result.get("message")})
-        except Exception as e:
-            output["ABCFrameworkVerification"] = {"status": "failed", "error": str(e)}
-            output["Discrepancies"].append({"type": "ABCFrameworkVerification", "issue": "ABC Framework verification error", "details": str(e)})
- 
-        # 7. Determine final status - PASS only if NO discrepancies and all steps succeed
-        all_scenarios_pass = (
-            output["SecretInvalidation"].get("success") and
-            output["GlueJobValidation"].get("status") == "SUCCEEDED" and
-            output["IncidentNumber"] is not None and
-            output["ABCFrameworkVerification"].get("status") == "success" and
-            len(output["Discrepancies"]) == 0
-        )
-        output["NegativeScenarioSuccessStatus"] = "PASS" if all_scenarios_pass else "FAIL"
- 
-    except Exception as e:
-        print(f"Critical error in lambda_handler: {e}")
-        output["Discrepancies"].append({"type": "LambdaHandler", "issue": "Critical error occurred", "details": str(e)})
-        output["NegativeScenarioSuccessStatus"] = "FAIL"
-   
-    finally:
-        # Restore secret password
-        if original_password is not None:
-            try:
-                success, result = execute_step("SecretRestore", restore_secret_password, SECRET_NAME, original_password)
-                output["SecretRestore"] = {"success": success, "details": result if success else result.get("error")}
-                if not success:
-                    output["Discrepancies"].append({"type": "SecretRestore", "issue": "Failed to restore password", "details": result})
-            except Exception as e:
-                print(f"Error restoring password: {e}")
-                output["SecretRestore"] = {"success": False, "error": str(e)}
-                output["NegativeScenarioSuccessStatus"] = "FAIL"
- 
-        # Upload output JSON directly to S3 (avoid local temp file)
-        try:
-            json_body = json.dumps(output, indent=4, default=str).encode("utf-8")
-            if S3_BUCKET:
-                s3_key = f"{OUTPUT_S3_KEY.rstrip('/')}/{FINAL_JSON_OUTPUT}"
-                s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=json_body)
-                s3_path = f"s3://{S3_BUCKET}/{s3_key}"
-                output["S3Upload"] = {"success": True, "details": {"s3_path": s3_path}}
-            else:
-                output["S3Upload"] = {"success": False, "details": "No S3_BUCKET configured"}
-                output["Discrepancies"].append({"type": "S3Upload", "issue": "No S3 bucket configured", "details": ""})
-                output["NegativeScenarioSuccessStatus"] = "FAIL"
-        except Exception as e:
-            output["S3Upload"] = {"success": False, "error": str(e)}
-            output["Discrepancies"].append({"type": "S3Upload", "issue": "Failed to upload to S3", "details": str(e)})
-            output["NegativeScenarioSuccessStatus"] = "FAIL"
- 
-        print(json.dumps(output, indent=4, default=str))
+    
         return output
+    
+    
+    # NEGATIVE FLOW
+    elif flow_type == "negative":
+    
+        print("Executing NEGATIVE flow")
+
+        output = {
+            "NegativeScenarioSuccessStatus": "FAIL",
+            "IncidentNumber": None,
+            "SecretInvalidation": {},
+            "DAGTrigger": {},
+            "GlueJobValidation": {},
+            "SecretRestore": {},
+            "TableProcessing": {},
+            "ABCFrameworkVerification": {},
+            "DbBeforeDagTrigger": 0,
+            "DbAfterDagTrigger": 0,
+            "DBComparison": {},
+            "Discrepancies": []
+        }
+        original_password = None
+        glue_end_time = None
+        conn = None
+        snapshot_before_keys = set()
+    
+        try:
+            # Extract DB snapshot before invalidation (file1)
+            try:
+                db_config_tmp = get_db_config(DB_SECRET_NAME)
+                snapshot_before_keys = fetch_key_set_from_db(db_config_tmp, "clariness_ref", "clariness_site_patient", "clariness_patient_id")
+                output["DbBeforeDagTrigger"] = len(snapshot_before_keys)
+            except Exception as e:
+                snapshot_before_keys = set()
+                output["DbBeforeDagTrigger"] = 0
+                output["Discrepancies"].append({"type": "DBSnapshotBefore", "issue": "Failed to extract before snapshot", "details": str(e)})
+
+            # 1. Invalidate secret password
+            success, result = execute_step("SecretInvalidation", invalidate_secret_password, SECRET_NAME)
+            output["SecretInvalidation"] = {"success": success, "details": "Password invalidated successfully" if success else result.get("error")}
+            if success:
+                original_password = result
+            else:
+                output["Discrepancies"].append({"type": "SecretInvalidation", "issue": "Failed to invalidate password", "details": result})
+    
+            # 2. Trigger Airflow DAG
+            success, result = execute_step("DAGTrigger", trigger_airflow_dag)
+            output["DAGTrigger"] = result
+            if not success:
+                output["Discrepancies"].append({"type": "DAGTrigger", "issue": "Failed to trigger DAG", "details": result})
+    
+            # 3. Wait for Glue job completion
+            success, result = execute_step("GlueJob", wait_for_glue_job_completion, GLUE_JOB_NAME)
+            output["GlueJobValidation"] = {"status": "SUCCEEDED", "end_time": str(result)} if success else {"status": "FAILED", "error": result.get("error")}
+            if success:
+                glue_end_time = result
+            else:
+                output["Discrepancies"].append({"type": "GlueJob", "issue": "Glue job failed", "details": result})
+    
+            # 4. Extract incident number from logs
+            inc_ok, inc_data = extract_incident_number_from_glue_logs()
+            output["IncidentNumber"] = inc_data if inc_ok else None
+            if not inc_ok:
+                output["Discrepancies"].append({"type": "IncidentNumber", "issue": "Incident number not found", "details": inc_data})
+    
+            # 5. Process database tables if Glue succeeded
+            if glue_end_time is not None:
+                try:
+                    db_config = get_db_config(DB_SECRET_NAME)
+                    conn = psycopg2.connect(**db_config)
+                    cursor = conn.cursor()
+                    all_old_records = []
+                    all_recent_updates = []
+    
+                    for table_name, primary_key_column in TABLE_CONFIG.items():
+                        old_recs, recent_upds = process_table(cursor, SCHEMA_NAME, table_name, primary_key_column, glue_end_time)
+                        all_old_records.extend(old_recs)
+                        all_recent_updates.extend(recent_upds)
+    
+                    output["TableProcessing"] = {
+                        "tables_processed": list(TABLE_CONFIG.keys()),
+                        "recent_updates_count": len(all_recent_updates),
+                        "recent_updates": all_recent_updates
+                    }
+    
+                    # Mark as failure if recent updates found (on or after Glue job end time)
+                    if all_recent_updates:
+                        output["Discrepancies"].append({
+                            "type": "TableProcessing",
+                            "issue": "DB records updated on or after Glue job end time",
+                            "details": f"Found {len(all_recent_updates)} updated records on/after Glue end time"
+                        })
+                    # Extract DB snapshot after glue run (file2) and compare
+                    try:
+                        db_config_tmp = get_db_config(DB_SECRET_NAME)
+                        snapshot_after_keys = fetch_key_set_from_db(db_config_tmp, "clariness_ref", "clariness_site_patient", "clariness_patient_id")
+                        output["DbAfterDagTrigger"] = len(snapshot_after_keys)
+                        comparison = compare_key_sets(snapshot_before_keys or set(), snapshot_after_keys or set())
+                        output["DBComparison"] = comparison
+                        if comparison.get("only_in_file1_count", 0) > 0 or comparison.get("only_in_file2_count", 0) > 0:
+                            output["Discrepancies"].append({"type": "DBComparison", "issue": "Differences found between before/after snapshots", "details": comparison})
+                    except Exception as e:
+                        output["DBComparison"] = {"status": "FAILED", "error": str(e)}
+                        output["Discrepancies"].append({"type": "DBComparison", "issue": "Failed to extract after snapshot", "details": str(e)})
+                except Exception as e:
+                    output["TableProcessing"] = {"status": "FAILED", "error": str(e)}
+                    output["Discrepancies"].append({"type": "TableProcessing", "issue": "Failed to process tables", "details": str(e)})
+                finally:
+                    if conn:
+                        conn.close()
+    
+            # 6. Verify ABC Framework
+            try:
+                abc_result = verify_abc_framework(negative_test=True)
+                output["ABCFrameworkVerification"] = abc_result
+                if abc_result.get("status") != "success":
+                    output["Discrepancies"].append({"type": "ABCFrameworkVerification", "issue": "ABC Framework verification failed", "details": abc_result.get("message")})
+            except Exception as e:
+                output["ABCFrameworkVerification"] = {"status": "failed", "error": str(e)}
+                output["Discrepancies"].append({"type": "ABCFrameworkVerification", "issue": "ABC Framework verification error", "details": str(e)})
+    
+            # 7. Determine final status - PASS only if NO discrepancies and all steps succeed
+            all_scenarios_pass = (
+                output["SecretInvalidation"].get("success") and
+                output["GlueJobValidation"].get("status") == "SUCCEEDED" and
+                output["IncidentNumber"] is not None and
+                output["ABCFrameworkVerification"].get("status") == "success" and
+                len(output["Discrepancies"]) == 0
+            )
+            output["NegativeScenarioSuccessStatus"] = "PASS" if all_scenarios_pass else "FAIL"
+    
+        except Exception as e:
+            print(f"Critical error in lambda_handler: {e}")
+            output["Discrepancies"].append({"type": "LambdaHandler", "issue": "Critical error occurred", "details": str(e)})
+            output["NegativeScenarioSuccessStatus"] = "FAIL"
+    
+        finally:
+            # Restore secret password
+            if original_password is not None:
+                try:
+                    success, result = execute_step("SecretRestore", restore_secret_password, SECRET_NAME, original_password)
+                    output["SecretRestore"] = {"success": success, "details": result if success else result.get("error")}
+                    if not success:
+                        output["Discrepancies"].append({"type": "SecretRestore", "issue": "Failed to restore password", "details": result})
+                except Exception as e:
+                    print(f"Error restoring password: {e}")
+                    output["SecretRestore"] = {"success": False, "error": str(e)}
+                    output["NegativeScenarioSuccessStatus"] = "FAIL"
+    
+            # Upload output JSON directly to S3 (avoid local temp file)
+            try:
+                json_body = json.dumps(output, indent=4, default=str).encode("utf-8")
+                if S3_BUCKET:
+                    s3_key = f"{OUTPUT_S3_KEY.rstrip('/')}/{FINAL_JSON_OUTPUT}"
+                    s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=json_body)
+                    s3_path = f"s3://{S3_BUCKET}/{s3_key}"
+                    output["S3Upload"] = {"success": True, "details": {"s3_path": s3_path}}
+                else:
+                    output["S3Upload"] = {"success": False, "details": "No S3_BUCKET configured"}
+                    output["Discrepancies"].append({"type": "S3Upload", "issue": "No S3 bucket configured", "details": ""})
+                    output["NegativeScenarioSuccessStatus"] = "FAIL"
+            except Exception as e:
+                output["S3Upload"] = {"success": False, "error": str(e)}
+                output["Discrepancies"].append({"type": "S3Upload", "issue": "Failed to upload to S3", "details": str(e)})
+                output["NegativeScenarioSuccessStatus"] = "FAIL"
+    
+            print(json.dumps(output, indent=4, default=str))
+            return output
