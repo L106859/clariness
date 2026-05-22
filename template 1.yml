@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: edb-core-github-repo-initializer
+Parameters:
+  DeployEnvironment:
+    Type: String
+    Description: The deployment environment (dev, qa, prod).
+  pVpcSecurityGroupIDs:
+    Description: "A list of SecurityGroupID's that the Lambda function should be in. Should be default."
+    Type: "List<AWS::EC2::SecurityGroup::Id>"
+  pVpcSubnetIDs:
+    Description: "A list of SubnetID's that the Lambda function should be assigned to."
+    Type: "List<AWS::EC2::Subnet::Id>"  
+  pRawbucketResultsFolder:
+    Type: String
+    Description: "S3 folder path for storing results of data comparison"
+  pRawbucketInputFolder:
+    Type: String
+    Description: "S3 folder path for storing input data for data comparison"
+  pRawbucketName:
+    Type: String
+    Description: "S3 bucket name for storing results of data comparison"
+Resources:          
+  AutomationLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: edb-mdids-ihub-data-harmony-api-test-trigger
+      CodeUri: functions/ClarinessDagTriggers
+      Handler: clarinessNegativeDagTrigger.lambda_handler
+      Runtime: python3.11
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/edb_lambda_mdids_infohub_service_role"
+      MemorySize: 3008
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          Ref: pVpcSecurityGroupIDs
+        SubnetIds:
+          Ref: pVpcSubnetIDs
+      Environment:
+        Variables:
+          AWSREGION: !Sub ${AWS::Region}
+          DEPLOY_ENVIRONMENT: !Ref DeployEnvironment
+          RAW_BUCKET_NAME: !Ref pRawbucketName
+          RAW_BUCKET_RESULTS_FOLDER: !Ref pRawbucketResultsFolder
+          RAW_BUCKET_INPUT_FOLDER: !Ref pRawbucketInputFolder
+      PermissionsBoundary: !Sub "arn:aws:iam::${AWS::AccountId}:policy/LZ-IAM-Boundary"
+      
+  dataharmonyautomationframeworkLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: data-harmony-framework-Layer
+      Description: Python libraries layer for Data Harmony Lambdas (nltk, pandarallel, pandas)
+      ContentUri: layers/DataComparsionLayer/python
+      CompatibleRuntimes:
+        - python3.11
+
+  DataComparisonLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: edb-mdids-ihub-clariness-data-comparison-abc-test
+      CodeUri: functions/clarinessDataComparison
+      Handler: clarinessDataComparison.lambda_handler
+      Runtime: python3.11
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/edb_lambda_mdids_infohub_service_role"
+      MemorySize: 3008
+      Timeout: 900
+      Layers:
+        - !Ref dataharmonyautomationframeworkLayer
+      VpcConfig:
+        SecurityGroupIds:
+          Ref: pVpcSecurityGroupIDs
+        SubnetIds:
+          Ref: pVpcSubnetIDs
+      Environment:
+        Variables:
+          AWSREGION: !Sub ${AWS::Region}
+          DEPLOY_ENVIRONMENT: !Ref DeployEnvironment
+          RAW_BUCKET_NAME: !Ref pRawbucketName
+          RAW_BUCKET_RESULTS_FOLDER: !Ref pRawbucketResultsFolder
+          RAW_BUCKET_INPUT_FOLDER: !Ref pRawbucketInputFolder
+      PermissionsBoundary: !Sub "arn:aws:iam::${AWS::AccountId}:policy/LZ-IAM-Boundary"   
