@@ -1,0 +1,495 @@
+{
+  "currentStatus": {
+    "type": "PENDING_SITE",
+    "label": "new",
+    "timestamp": "2025-03-24T16:11:16.012Z"
+  },
+  "statuses": {
+    "pendingCallCenter": null,
+    "pendingSite": {
+      "timestamp": "2025-03-24T16:11:16.012Z"
+    },
+    "rejectedAtCallCenter": null,
+    "rejectedAtSite": null,
+    "consented": null,
+    "randomized": null
+  },
+  "createdAt": "2025-03-24T16:11:16.012Z",
+  "updatedAt": "2025-03-24T16:11:16.012Z",
+  "lastStaffActivity": null,
+  "deleted": false,
+  "anonymized": false,
+  "activities": [],
+  "gender": "male",
+  "id": "EZEF-9609",
+  "ieCriteria": null,
+  "selfAssessment": {
+    "questions": [
+      {
+        "question": {
+          "key": "age",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"fiftyfiveandabove\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "ckd_diagnosis",
+          "type": "yesno"
+        },
+        "answer": {
+          "answer": "false"
+        }
+      },
+      {
+        "question": {
+          "key": "diabetes",
+          "type": "yesno"
+        },
+        "answer": null
+      },
+      {
+        "question": {
+          "key": "diabetes_ckd_no",
+          "type": "yesno"
+        },
+        "answer": {
+          "answer": "false"
+        }
+      },
+      {
+        "question": {
+          "key": "events",
+          "type": "checkbox"
+        },
+        "answer": null
+      },
+      {
+        "question": {
+          "key": "med_conditions",
+          "type": "checkbox"
+        },
+        "answer": null
+      },
+      {
+        "question": {
+          "key": "risk_factors",
+          "type": "checkbox"
+        },
+        "answer": {
+          "answer": "{\"female\":true,\"highbp\":true}"
+        }
+      }
+    ]
+  },
+  "manuscript": {
+    "questions": [
+      {
+        "question": {
+          "key": "identity",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"confirmed\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "availability",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"yes\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "permission",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"yes\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "study_purpose",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"yes\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "dob",
+          "type": "dateofbirth"
+        },
+        "answer": {
+          "answer": "1954-2"
+        }
+      },
+      {
+        "question": {
+          "key": "age",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"over_55\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "system_gender",
+          "type": "gender"
+        },
+        "answer": {
+          "answer": "male"
+        }
+      },
+      {
+        "question": {
+          "key": "hisp_lat",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"hispanic\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "race",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"white\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "heart_attack",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "procedures_coronary_ezef_estab_ascvd_gzbo_estab_ascvd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "stroke_ezef_estab_ascvd_gzbo_estab_ascvd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "procedures_carotid_ezef_estab_ascvd_gzbo_estab_ascvd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "procedures_pad_ezef_estab_ascvd_gzbo_estab_ascvd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "cad_diagnosis_ezef_cvd_risk_gzbo_estab_ascvd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "caro_sten_diagnosis_ezef_cvd_risk_gzbo_estab_ascvd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "pad_diagnosis_ezef_cvd_risk_gzbo_estab_ascvd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "ckd_diagnosis_ezef_cvd_risk_gzbo_ckd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "diabetes_ezef_cvd_risk_gzbo_t_2_dm",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no_diabetes\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "diabetes_medication",
+          "type": "checkbox"
+        },
+        "answer": {
+          "answer": "{\"no_diabetes\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "tobacco_ezef_cvd_risk_gzbo_na",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "hypertension_ezef_cvd_risk_gzbo_na",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"ht_withmeds\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "heart_family_ezef_cvd_risk_gzbo_na",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "cholesterol_meds_ezef_cvd_risk_gzbo_na",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"yes\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "hypercholest_diagnosis_ezef_cvd_risk_gzbo_na",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "ezf_est_cvd_18_to_54",
+          "type": "radiobutton"
+        },
+        "answer": null
+      },
+      {
+        "question": {
+          "key": "ezef_est_cvd_over_55",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "ezef_cvdrisk_over_55",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "ezef_cvdrisk_over_55_part_2",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"yes\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "gzbo_estcvd_ckd",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "kidney_transplant",
+          "type": "checkbox"
+        },
+        "answer": {
+          "answer": "{\"none\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "weight_surgery",
+          "type": "checkbox"
+        },
+        "answer": {
+          "answer": "{\"none\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "surgery_date",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"na\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "device_presence",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"na\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "pancreatitis_diagnosis",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "cancer",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "liver_failure",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "other_conditions",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"no\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "bmi",
+          "type": "bmi"
+        },
+        "answer": {
+          "answer": "32.5"
+        }
+      },
+      {
+        "question": {
+          "key": "lpa",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"not_sure\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "consent",
+          "type": "radiobutton"
+        },
+        "answer": {
+          "answer": "{\"yes\":true}"
+        }
+      },
+      {
+        "question": {
+          "key": "eligibility",
+          "type": "checkbox"
+        },
+        "answer": {
+          "answer": "{\"check\":true}"
+        }
+      }
+    ]
+  },
+  "site": {
+    "principalInvestigator": {
+      "piName": "Israel Olvera-Alvarez"
+    },
+    "siteName": "Clínicos Asociados BOCM",
+    "country": {
+      "code": "mx",
+      "englishName": "Mexico"
+    },
+    "studySiteId": "43783"
+  },
+  "externalIds": [],
+  "study": {
+    "id": "EZEF",
+    "trialName": "ACCLAIM-Lp(a) J3L-MC-EZEF (updated)"
+  },
+  "source": {
+    "utm": {
+      "source": "facebook",
+      "medium": "ppc",
+      "campaign": "facebook_mx-new_ADV-OLD_pressure",
+      "term": null,
+      "content": null
+    }
+  },
+  "personId": "946637001",
+  "ieCriteriaFailures": null,
+  "subjectId": "1742832677596"
+}
