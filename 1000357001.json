@@ -1,0 +1,39 @@
+{
+  "site": {
+    "site_id": "055ac9f6-65ff-43cd-b4d0-fa3a3b8ca5b1"
+  },
+  "study": {
+    "study_id": "adf0797a-e3b9-4620-b3b6-f5d1cf660c53"
+  },
+  "gender": "F",
+  "status": "NEW_REFERRAL",
+  "deleted": false,
+  "protocol": null,
+  "site_code": "66193",
+  "utm_medium": "Other Non-paid",
+  "utm_source": "Clariness",
+  "referral_id": "0556d436-1b51-4f57-942d-b2e13901819c",
+  "dropped_date": null,
+  "utm_campaign": "1935_pl (pl) masld_ar",
+  "referral_date": "2026-05-02T15:54:08Z",
+  "vendor_number": 5264096,
+  "status_history": [
+    {
+      "status": "IN_CALL_CENTER",
+      "timestamp": "2026-05-02T15:54:08Z"
+    },
+    {
+      "status": "FORWARD_TO_SITE",
+      "timestamp": "2026-05-04T07:24:01Z"
+    }
+  ],
+  "last_updated_at": "2026-05-15T10:00:00Z",
+  "forwarded_to_site": "2026-05-04T07:24:01.000Z",
+  "randomization_date": null,
+  "sponsor_patient_id": null,
+  "consent_signed_date": null,
+  "qualified_protocols": [
+    "MALO"
+  ],
+  "principal_investigator": "m.lukaszewicz@pihouse.pl"
+}
